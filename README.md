@@ -24,8 +24,8 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
-   cd proxmox-gatekeeper
+   git clone https://github.com/ThMadHatter/gatekeeper.git
+   cd gatekeeper
    ```
 
 2. **Run the installer**:
