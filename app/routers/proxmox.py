@@ -32,6 +32,22 @@ async def create_lxc(request: LXCCreateRequest, service: ProxmoxService = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/list-lxcs")
+async def list_lxcs(service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.list_lxcs()
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete-lxc/{vmid}")
+async def delete_lxc(vmid: int, service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.delete_lxc(vmid=vmid)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/execute")
 async def execute(request: ExecuteRequest, service: ProxmoxService = Depends(get_proxmox_service)):
     try:

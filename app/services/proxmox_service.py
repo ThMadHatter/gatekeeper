@@ -39,3 +39,21 @@ class ProxmoxService:
         except Exception as e:
             logger.error(f"Failed to execute command on VMID {vmid}: {e}")
             raise
+
+    def list_lxcs(self):
+        logger.info("Listing all LXCs")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).lxc.get()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to list LXCs: {e}")
+            raise
+
+    def delete_lxc(self, vmid: int):
+        logger.info(f"Deleting LXC with VMID: {vmid}")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).lxc(vmid).delete()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to delete LXC {vmid}: {e}")
+            raise
