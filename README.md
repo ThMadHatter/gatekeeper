@@ -67,7 +67,6 @@ The repository includes a comprehensive test suite using `pytest`.
 ### Running Mocked Tests
 To run the tests without a real Proxmox server (using mocks):
 ```bash
-export PYTHONPATH=$PYTHONPATH:.
 # Provide dummy credentials for config validation
 export PROXMOX_HOST=dummy
 export PROXMOX_USER=dummy
