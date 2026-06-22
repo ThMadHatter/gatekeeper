@@ -77,13 +77,25 @@ export PROXMOX_NODE=dummy
 pytest
 ```
 
-### Integration Testing
-The `tests/test_integration.py` script verifies the full lifecycle:
-1. Listing containers.
-2. Creating a container.
-3. Executing a command in the container.
-4. Deleting the container.
-5. Verifying deletion.
+### Real Environment Integration Testing
+To run the integration tests against a real Proxmox environment:
+1. Ensure your `.secrets` file or environment variables are correctly set.
+2. Set `RUN_REAL_TESTS=true`.
+3. (Optional) Set `TEST_VMID` and `TEST_TEMPLATE`.
+
+```bash
+export RUN_REAL_TESTS=true
+export TEST_VMID=999
+export TEST_TEMPLATE="local:vztmpl/debian-11-standard_11.0-1_amd64.tar.gz"
+# Plus all required PROXMOX_* variables if not in .secrets
+pytest tests/test_integration.py
+```
+
+### Coverage
+To check test coverage:
+```bash
+pytest --cov=app tests/
+```
 
 ## Security Note
 Always run this application behind a firewall or within a secure network segment. Ensure `.secrets` file permissions are restricted (the installer sets them to 600).

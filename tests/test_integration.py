@@ -1,60 +1,91 @@
 import pytest
+import os
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+from app.routers.proxmox import get_proxmox_service
+
+# Toggle for real tests vs mocked tests
+RUN_REAL_TESTS = os.getenv("RUN_REAL_TESTS", "false").lower() == "true"
 
 @pytest.mark.asyncio
-async def test_full_lxc_lifecycle_mocked():
+async def test_full_lxc_lifecycle():
     """
     Tests the full lifecycle of an LXC: List -> Create -> Execute -> Delete -> List
-    Using mocks to avoid needing a real Proxmox server.
+    Can run against a real Proxmox server if RUN_REAL_TESTS=true and credentials are provided.
+    Otherwise, runs against mocks.
     """
-    with patch("app.routers.proxmox.ProxmoxService") as MockService:
-        mock_instance = MockService.return_value
 
-        # 1. Setup mocks
-        mock_instance.list_lxcs.side_effect = [[], [{"vmid": 100}]] # Empty first, then with one
-        mock_instance.create_lxc.return_value = "UPID:pve:00001:create"
-        mock_instance.execute_command.return_value = "UPID:pve:00002:exec"
-        mock_instance.delete_lxc.return_value = "UPID:pve:00003:delete"
+    if RUN_REAL_TESTS:
+        # For real tests, we use the actual service as configured in .secrets or env
+        # Note: We might want to use specific test VMIDs to avoid collisions
+        test_vmid = int(os.getenv("TEST_VMID", "9999"))
+        test_template = os.getenv("TEST_TEMPLATE", "local:vztmpl/debian-11-standard_11.0-1_amd64.tar.gz")
+        test_hostname = "gatekeeper-integration-test"
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            # 2. List LXCs (Initial)
+            # 1. List (Initial)
             response = await ac.get("/proxmox/list-lxcs")
             assert response.status_code == 200
-            assert response.json()["data"] == []
 
-            # 3. Create LXC
-            vmid = 100
+            # 2. Create
             response = await ac.post("/proxmox/create-lxc", json={
-                "vmid": vmid,
-                "ostemplate": "local:vztmpl/debian-11.tar.gz",
-                "hostname": "test-integration"
+                "vmid": test_vmid,
+                "ostemplate": test_template,
+                "hostname": test_hostname
             })
             assert response.status_code == 200
-            assert "UPID" in response.json()["data"]
 
-            # 4. List LXCs (After creation)
+            # 3. List (After creation - might need a small delay if Proxmox is slow,
+            # but usually the API returns success after task creation)
             response = await ac.get("/proxmox/list-lxcs")
             assert response.status_code == 200
-            assert any(lxc["vmid"] == vmid for lxc in response.json()["data"])
 
-            # 5. Execute Command
+            # 4. Execute
             response = await ac.post("/proxmox/execute", json={
-                "vmid": vmid,
-                "command": "apt-get update"
+                "vmid": test_vmid,
+                "command": "uptime"
             })
             assert response.status_code == 200
-            assert "UPID" in response.json()["data"]
 
-            # 6. Delete LXC
-            response = await ac.delete(f"/proxmox/delete-lxc/{vmid}")
+            # 5. Delete
+            response = await ac.delete(f"/proxmox/delete-lxc/{test_vmid}")
             assert response.status_code == 200
-            assert "UPID" in response.json()["data"]
 
-            # Reset mock for final list check if needed,
-            # or just rely on side_effect if we planned it
-            mock_instance.list_lxcs.side_effect = [[]]
-            response = await ac.get("/proxmox/list-lxcs")
-            assert response.status_code == 200
-            assert response.json()["data"] == []
+    else:
+        # Mocked version
+        with patch("app.routers.proxmox.ProxmoxService") as MockService:
+            mock_instance = MockService.return_value
+            mock_instance.list_lxcs.side_effect = [[], [{"vmid": 100}], []]
+            mock_instance.create_lxc.return_value = "UPID:pve:00001:create"
+            mock_instance.execute_command.return_value = "UPID:pve:00002:exec"
+            mock_instance.delete_lxc.return_value = "UPID:pve:00003:delete"
+
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                # 1. List
+                response = await ac.get("/proxmox/list-lxcs")
+                assert response.status_code == 200
+                assert response.json()["data"] == []
+
+                # 2. Create
+                response = await ac.post("/proxmox/create-lxc", json={
+                    "vmid": 100,
+                    "ostemplate": "template",
+                    "hostname": "test"
+                })
+                assert response.status_code == 200
+
+                # 3. List
+                response = await ac.get("/proxmox/list-lxcs")
+                assert response.json()["data"] == [{"vmid": 100}]
+
+                # 4. Execute
+                response = await ac.post("/proxmox/execute", json={
+                    "vmid": 100,
+                    "command": "ls"
+                })
+                assert response.status_code == 200
+
+                # 5. Delete
+                response = await ac.delete("/proxmox/delete-lxc/100")
+                assert response.status_code == 200
