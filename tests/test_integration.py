@@ -35,10 +35,9 @@ async def test_full_lxc_lifecycle():
     if RUN_REAL_TESTS:
         test_vmid = int(os.getenv("TEST_VMID", "9999"))
         test_storage = os.getenv("TEST_STORAGE", "local")
-        # Using a very small template for faster upload during tests if possible,
-        # but defaulting to standard debian
-        template_url = os.getenv("TEST_TEMPLATE_URL", "http://download.proxmox.com/images/system/debian-11-standard_11.0-1_amd64.tar.gz")
-        template_filename = "test-upload-template.tar.gz"
+        # Using a small template (Alpine Linux) for faster upload during tests.
+        template_url = os.getenv("TEST_TEMPLATE_URL", "https://mirror.accum.se/mirror/linuxcontainers.org/images/alpine/3.18/amd64/default/20230607_13:00/rootfs.tar.xz")
+        template_filename = "alpine-3.18-test.tar.xz"
         test_hostname = "gatekeeper-upload-test"
 
         additional_params = {}
