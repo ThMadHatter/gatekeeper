@@ -18,10 +18,18 @@ async def test_full_lxc_lifecycle():
 
     if RUN_REAL_TESTS:
         # For real tests, we use the actual service as configured in .secrets or env
-        # Note: We might want to use specific test VMIDs to avoid collisions
         test_vmid = int(os.getenv("TEST_VMID", "9999"))
         test_template = os.getenv("TEST_TEMPLATE", "local:vztmpl/debian-11-standard_11.0-1_amd64.tar.gz")
         test_hostname = "gatekeeper-integration-test"
+
+        # Additional params often needed for a successful creation on real Proxmox
+        additional_params = {}
+        if os.getenv("TEST_STORAGE"):
+            additional_params["storage"] = os.getenv("TEST_STORAGE")
+        if os.getenv("TEST_PASSWORD"):
+            additional_params["password"] = os.getenv("TEST_PASSWORD")
+        if os.getenv("TEST_NET0"):
+            additional_params["net0"] = os.getenv("TEST_NET0")
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             # 1. List (Initial)
@@ -32,12 +40,12 @@ async def test_full_lxc_lifecycle():
             response = await ac.post("/proxmox/create-lxc", json={
                 "vmid": test_vmid,
                 "ostemplate": test_template,
-                "hostname": test_hostname
+                "hostname": test_hostname,
+                "additional_params": additional_params
             })
             assert response.status_code == 200
 
-            # 3. List (After creation - might need a small delay if Proxmox is slow,
-            # but usually the API returns success after task creation)
+            # 3. List (After creation)
             response = await ac.get("/proxmox/list-lxcs")
             assert response.status_code == 200
 
