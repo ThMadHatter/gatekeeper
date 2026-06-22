@@ -16,7 +16,7 @@ class ProxmoxService:
             token_name=settings.PROXMOX_TOKEN_NAME,
             token_value=settings.PROXMOX_TOKEN_VALUE,
             verify_ssl=False, # Often needed for Proxmox self-signed certs
-            timeout=300       # Increase timeout for uploads and slow operations
+            timeout=600       # 10 minutes timeout for uploads and slow operations
         )
 
     def create_lxc(self, vmid: int, ostemplate: str, hostname: str, **kwargs):
@@ -157,11 +157,13 @@ class ProxmoxService:
         logger.info(f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)")
         try:
             # Using the Proxmox upload endpoint
-            # We pass 'content' as a regular parameter and 'filename' as a file in the multipart form
+            # Proxmoxer passes extra kwargs to the underlying requests library.
+            # To ensure a proper multipart/form-data upload, we use the 'files' parameter.
             result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).upload.post(
                 content="vztmpl",
-                # Proxmoxer/Requests multipart requires the file tuple: (filename, content)
-                filename=(filename, file_content)
+                files={
+                    'filename': (filename, file_content)
+                }
             )
             return result
         except Exception as e:

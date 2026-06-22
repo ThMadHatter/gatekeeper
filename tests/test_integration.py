@@ -51,10 +51,11 @@ async def test_full_lxc_lifecycle():
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", timeout=600) as ac:
             # 1. Download Template Locally
             print(f"\nDownloading template locally from {template_url}...")
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=True) as client:
                 resp = await client.get(template_url)
                 resp.raise_for_status()
                 template_content = resp.content
+                print(f"Downloaded {len(template_content)} bytes (Content-Type: {resp.headers.get('content-type')})")
 
             # 2. Upload to Proxmox
             print(f"Uploading template to Proxmox storage {test_storage} ({len(template_content)} bytes)...")

@@ -113,6 +113,10 @@ export TEST_STORAGE="local"
 # Note: Use a valid, reachable template URL and filename for integration tests
 export TEST_TEMPLATE_URL="https://mirror.accum.se/mirror/linuxcontainers.org/images/alpine/3.18/amd64/default/20230607_13:00/rootfs.tar.xz"
 export TEST_TEMPLATE_NAME="alpine-3.18-test.tar.xz"
+
+# Troubleshooting Uploads:
+# If uploads fail with "RemoteDisconnected", check your Proxmox host's firewall
+# or ensure the local storage has enough space for the template.
 export TEST_PASSWORD="your-test-password"
 export TEST_NET0="name=eth0,bridge=vmbr0,ip=dhcp"
 # Plus all required PROXMOX_* variables if not in .secrets
