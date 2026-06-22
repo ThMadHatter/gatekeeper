@@ -1,6 +1,10 @@
 from proxmoxer import ProxmoxAPI
 from app.config import settings
 import logging
+import urllib3
+
+# Suppress InsecureRequestWarning for self-signed Proxmox certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +15,8 @@ class ProxmoxService:
             user=settings.PROXMOX_USER,
             token_name=settings.PROXMOX_TOKEN_NAME,
             token_value=settings.PROXMOX_TOKEN_VALUE,
-            verify_ssl=False # Often needed for Proxmox self-signed certs, can be made configurable
+            verify_ssl=False, # Often needed for Proxmox self-signed certs
+            timeout=300       # Increase timeout for uploads and slow operations
         )
 
     def create_lxc(self, vmid: int, ostemplate: str, hostname: str, **kwargs):
@@ -149,15 +154,14 @@ class ProxmoxService:
             raise
 
     def upload_template(self, storage: str, filename: str, file_content: bytes):
-        logger.info(f"Uploading template {filename} to storage {storage}")
+        logger.info(f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)")
         try:
             # Using the Proxmox upload endpoint
             # We pass 'content' as a regular parameter and 'filename' as a file in the multipart form
             result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).upload.post(
                 content="vztmpl",
-                files={
-                    'filename': (filename, file_content)
-                }
+                # Proxmoxer/Requests multipart requires the file tuple: (filename, content)
+                filename=(filename, file_content)
             )
             return result
         except Exception as e:

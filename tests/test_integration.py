@@ -57,7 +57,7 @@ async def test_full_lxc_lifecycle():
                 template_content = resp.content
 
             # 2. Upload to Proxmox
-            print(f"Uploading template to Proxmox storage {test_storage}...")
+            print(f"Uploading template to Proxmox storage {test_storage} ({len(template_content)} bytes)...")
             files = {'file': (template_filename, template_content)}
             data = {'storage': test_storage}
             response = await ac.post("/proxmox/upload-template", data=data, files=files)

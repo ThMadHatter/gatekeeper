@@ -70,6 +70,8 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 - `DELETE /proxmox/delete-template/{storage}/{volume:path}`: Delete a template volume.
 - `DELETE /proxmox/delete-lxc/{vmid}`: Delete an LXC container.
 
+> **Note on .tar.zst support**: Proxmox 8.x supports `.tar.zst` templates. If you are on an older version of Proxmox, ensure you use `.tar.gz` templates.
+
 ### Template Repository Management
 
 - `GET /repos`: List registered online template repositories.
