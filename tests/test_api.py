@@ -97,6 +97,58 @@ async def test_delete_lxc_endpoint_error():
         assert "Delete Error" in response.json()["detail"]
 
 @pytest.mark.asyncio
+async def test_execute_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.execute_command.return_value = "UPID:exec"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/execute", json={"vmid": 100, "command": "ls"})
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:exec"
+
+@pytest.mark.asyncio
+async def test_list_lxcs_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.list_lxcs.return_value = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/list-lxcs")
+        assert response.status_code == 200
+        assert response.json()["data"] == []
+
+@pytest.mark.asyncio
+async def test_create_lxc_endpoint_success_no_params():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.create_lxc.return_value = "UPID:create"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/create-lxc", json={
+                "vmid": 100, "ostemplate": "t", "hostname": "h"
+            })
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:create"
+
+@pytest.mark.asyncio
+async def test_list_templates_endpoint_success_no_storage():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.list_templates.return_value = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/templates")
+        assert response.status_code == 200
+        assert response.json()["data"] == []
+
+@pytest.mark.asyncio
+async def test_list_templates_endpoint_default_storage():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.list_templates.return_value = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/templates")
+        assert response.status_code == 200
+        assert response.json()["data"] == []
+
+@pytest.mark.asyncio
 async def test_start_lxc_endpoint_error():
     with patch("app.routers.proxmox.ProxmoxService") as MockService:
         mock_instance = MockService.return_value
@@ -195,3 +247,47 @@ async def test_list_templates_endpoint_error():
             response = await ac.get("/proxmox/templates")
         assert response.status_code == 500
         assert "Template Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_download_template_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.download_template.return_value = "UPID:download"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/download-template", json={
+                "storage": "local", "url": "http://url", "filename": "file"
+            })
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:download"
+
+@pytest.mark.asyncio
+async def test_delete_template_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.delete_template.return_value = "UPID:delete"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.delete("/proxmox/delete-template/local/vztmpl/file")
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:delete"
+
+@pytest.mark.asyncio
+async def test_download_template_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.download_template.side_effect = Exception("Download Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/download-template", json={
+                "storage": "local", "url": "http://url", "filename": "file"
+            })
+        assert response.status_code == 500
+        assert "Download Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_delete_template_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.delete_template.side_effect = Exception("Delete Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.delete("/proxmox/delete-template/local/vztmpl/file")
+        assert response.status_code == 500
+        assert "Delete Error" in response.json()["detail"]

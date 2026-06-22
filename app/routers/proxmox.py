@@ -15,6 +15,11 @@ class ExecuteRequest(BaseModel):
     vmid: int
     command: str
 
+class TemplateDownloadRequest(BaseModel):
+    storage: str
+    url: str
+    filename: str
+
 def get_proxmox_service():
     return ProxmoxService()
 
@@ -28,6 +33,26 @@ async def create_lxc(request: LXCCreateRequest, service: ProxmoxService = Depend
             hostname=request.hostname,
             **params
         )
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/download-template")
+async def download_template(request: TemplateDownloadRequest, service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.download_template(
+            storage=request.storage,
+            url=request.url,
+            filename=request.filename
+        )
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete-template/{storage}/{volume:path}")
+async def delete_template(storage: str, volume: str, service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.delete_template(storage=storage, volume=volume)
         return {"status": "success", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -63,6 +63,8 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 - `GET /proxmox/status-lxc/{vmid}`: Get the current status of an LXC container.
 - `GET /proxmox/tasks/{upid}`: Get the status of a Proxmox task.
 - `GET /proxmox/templates?storage=local`: List available templates on a storage.
+- `POST /proxmox/download-template`: Download an LXC template from a URL to storage.
+- `DELETE /proxmox/delete-template/{storage}/{volume:path}`: Delete a template volume.
 - `DELETE /proxmox/delete-lxc/{vmid}`: Delete an LXC container.
 
 ## Testing
@@ -83,20 +85,21 @@ pytest
 ```
 
 ### Real Environment Integration Testing
-To run the integration tests against a real Proxmox environment:
+The integration test verifies the full lifecycle: **Download Template -> Create LXC -> Start -> Execute -> Stop -> Delete LXC -> Delete Template**.
+
+To run it:
 1. Ensure your `.secrets` file or environment variables are correctly set.
 2. Set `RUN_REAL_TESTS=true`.
-3. (Optional) Set `TEST_VMID` and `TEST_TEMPLATE`.
 
 ```bash
 export RUN_REAL_TESTS=true
 export TEST_VMID=999
-export TEST_TEMPLATE="local:vztmpl/debian-11-standard_11.0-1_amd64.tar.gz" # Must exist on host
-export TEST_STORAGE="local-lvm"
+export TEST_STORAGE="local"
+export TEST_TEMPLATE_URL="http://download.proxmox.com/images/system/debian-11-standard_11.0-1_amd64.tar.gz"
 export TEST_PASSWORD="your-test-password"
 export TEST_NET0="name=eth0,bridge=vmbr0,ip=dhcp"
 # Plus all required PROXMOX_* variables if not in .secrets
-pytest tests/test_integration.py
+pytest -s tests/test_integration.py
 ```
 
 ### Coverage

@@ -112,3 +112,25 @@ def test_service_list_templates_error(service):
         with pytest.raises(Exception) as exc:
             service.list_templates("local")
         assert "Template Error" in str(exc.value)
+
+def test_service_download_template_success(service):
+    with patch.object(service.proxmox.nodes("dummy").storage("local").download_url, "post", return_value="UPID:download"):
+        res = service.download_template("local", "url", "file")
+        assert res == "UPID:download"
+
+def test_service_delete_template_success(service):
+    with patch.object(service.proxmox.nodes("dummy").storage("local").content("vol"), "delete", return_value="UPID:delete"):
+        res = service.delete_template("local", "vol")
+        assert res == "UPID:delete"
+
+def test_service_download_template_error(service):
+    with patch.object(service.proxmox.nodes("dummy").storage("local").download_url, "post", side_effect=Exception("Download Error")):
+        with pytest.raises(Exception) as exc:
+            service.download_template("local", "url", "file")
+        assert "Download Error" in str(exc.value)
+
+def test_service_delete_template_error(service):
+    with patch.object(service.proxmox.nodes("dummy").storage("local").content("vol"), "delete", side_effect=Exception("Delete Error")):
+        with pytest.raises(Exception) as exc:
+            service.delete_template("local", "vol")
+        assert "Delete Error" in str(exc.value)

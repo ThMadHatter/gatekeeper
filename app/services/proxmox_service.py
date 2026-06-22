@@ -103,3 +103,26 @@ class ProxmoxService:
         except Exception as e:
             logger.error(f"Failed to list templates on {storage}: {e}")
             raise
+
+    def download_template(self, storage: str, url: str, filename: str):
+        logger.info(f"Downloading template from {url} to {storage}/{filename}")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).download_url.post(
+                url=url,
+                filename=filename,
+                content="vztmpl"
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Failed to initiate template download: {e}")
+            raise
+
+    def delete_template(self, storage: str, volume: str):
+        logger.info(f"Deleting template {volume} from storage {storage}")
+        try:
+            # Volume is usually something like 'vztmpl/debian-11-standard_11.0-1_amd64.tar.gz'
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).content(volume).delete()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to delete template {volume} from {storage}: {e}")
+            raise
