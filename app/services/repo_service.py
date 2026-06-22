@@ -69,3 +69,10 @@ class RepoService:
         except Exception as e:
             logger.error(f"Failed to write repo file: {e}")
             raise Exception(f"Failed to update repository list: {e}")
+
+    def get_repo_by_name(self, name: str) -> Dict[str, str]:
+        repos = self.list_repos()
+        for repo in repos:
+            if repo["name"] == name:
+                return repo
+        raise Exception(f"Repository '{name}' not found")

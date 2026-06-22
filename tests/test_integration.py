@@ -37,7 +37,7 @@ async def test_full_lxc_lifecycle():
         test_storage = os.getenv("TEST_STORAGE", "local")
         # Using a small template (Alpine Linux) for faster upload during tests.
         template_url = os.getenv("TEST_TEMPLATE_URL", "https://mirror.accum.se/mirror/linuxcontainers.org/images/alpine/3.18/amd64/default/20230607_13:00/rootfs.tar.xz")
-        template_filename = "alpine-3.18-test.tar.xz"
+        template_filename = os.getenv("TEST_TEMPLATE_NAME", "alpine-3.18-test.tar.xz")
         test_hostname = "gatekeeper-upload-test"
 
         additional_params = {}

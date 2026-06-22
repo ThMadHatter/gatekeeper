@@ -72,3 +72,12 @@ def test_remove_repo_write_error(repo_service):
         with pytest.raises(Exception) as exc:
             repo_service.remove_repo("Proxmox Official")
         assert "Failed to update" in str(exc.value)
+
+def test_get_repo_by_name_success(repo_service):
+    repo = repo_service.get_repo_by_name("Proxmox Official")
+    assert repo["name"] == "Proxmox Official"
+
+def test_get_repo_by_name_not_found(repo_service):
+    with pytest.raises(Exception) as exc:
+        repo_service.get_repo_by_name("Missing")
+    assert "not found" in str(exc.value)

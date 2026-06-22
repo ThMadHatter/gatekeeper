@@ -108,7 +108,9 @@ To run it:
 export RUN_REAL_TESTS=true
 export TEST_VMID=999
 export TEST_STORAGE="local"
-export TEST_TEMPLATE_NAME="debian-11-standard_11.0-1_amd64.tar.gz"
+# Note: Use a valid, reachable template URL and filename for integration tests
+export TEST_TEMPLATE_URL="https://mirror.accum.se/mirror/linuxcontainers.org/images/alpine/3.18/amd64/default/20230607_13:00/rootfs.tar.xz"
+export TEST_TEMPLATE_NAME="alpine-3.18-test.tar.xz"
 export TEST_PASSWORD="your-test-password"
 export TEST_NET0="name=eth0,bridge=vmbr0,ip=dhcp"
 # Plus all required PROXMOX_* variables if not in .secrets

@@ -31,3 +31,11 @@ async def remove_repo(name: str, service: RepoService = Depends(get_repo_service
         return {"status": "success", "message": f"Repository '{name}' removed"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/{name}")
+async def get_repo(name: str, service: RepoService = Depends(get_repo_service)):
+    try:
+        result = service.get_repo_by_name(name)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))

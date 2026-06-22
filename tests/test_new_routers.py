@@ -49,3 +49,19 @@ async def test_remove_repo_endpoint_error():
             response = await ac.delete("/repos/test")
         assert response.status_code == 404
         assert "Missing" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_get_repo_endpoint_success():
+    with patch("app.routers.repos.RepoService.get_repo_by_name", return_value={"name": "test", "url": "url"}):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/repos/test")
+        assert response.status_code == 200
+        assert response.json()["data"]["name"] == "test"
+
+@pytest.mark.asyncio
+async def test_get_repo_endpoint_error():
+    with patch("app.routers.repos.RepoService.get_repo_by_name", side_effect=Exception("Missing")):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/repos/test")
+        assert response.status_code == 404
+        assert "Missing" in response.json()["detail"]
