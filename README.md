@@ -57,7 +57,10 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 - `GET /`: Health check.
 - `GET /proxmox/list-lxcs`: List all LXC containers on the node.
 - `POST /proxmox/create-lxc`: Create a new LXC container.
-- `POST /proxmox/execute`: Execute a command inside an LXC.
+- `POST /proxmox/execute`: Execute a command inside an LXC (Container must be running).
+- `POST /proxmox/start-lxc/{vmid}`: Start an LXC container.
+- `POST /proxmox/stop-lxc/{vmid}`: Stop an LXC container.
+- `GET /proxmox/status-lxc/{vmid}`: Get the current status of an LXC container.
 - `DELETE /proxmox/delete-lxc/{vmid}`: Delete an LXC container.
 
 ## Testing

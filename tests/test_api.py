@@ -95,3 +95,63 @@ async def test_delete_lxc_endpoint_error():
 
         assert response.status_code == 500
         assert "Delete Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_start_lxc_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.start_lxc.side_effect = Exception("Start Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/start-lxc/100")
+        assert response.status_code == 500
+        assert "Start Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_stop_lxc_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.stop_lxc.side_effect = Exception("Stop Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/stop-lxc/100")
+        assert response.status_code == 500
+        assert "Stop Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_get_status_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.get_lxc_status.side_effect = Exception("Status Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/status-lxc/100")
+        assert response.status_code == 500
+        assert "Status Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_stop_lxc_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.stop_lxc.return_value = "UPID:stop"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/stop-lxc/100")
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:stop"
+
+@pytest.mark.asyncio
+async def test_start_lxc_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.start_lxc.return_value = "UPID:start"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/start-lxc/100")
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:start"
+
+@pytest.mark.asyncio
+async def test_get_status_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.get_lxc_status.return_value = {"status": "running"}
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/status-lxc/100")
+        assert response.status_code == 200
+        assert response.json()["data"] == {"status": "running"}

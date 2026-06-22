@@ -37,7 +37,10 @@ class ProxmoxService:
             result = self.proxmox.nodes(settings.PROXMOX_NODE).lxc(vmid).exec.post(command=command)
             return result
         except Exception as e:
-            logger.error(f"Failed to execute command on VMID {vmid}: {e}")
+            if "501 Not Implemented" in str(e):
+                logger.error(f"Failed to execute command on VMID {vmid}: {e}. Ensure the container is running.")
+            else:
+                logger.error(f"Failed to execute command on VMID {vmid}: {e}")
             raise
 
     def list_lxcs(self):
@@ -56,4 +59,30 @@ class ProxmoxService:
             return result
         except Exception as e:
             logger.error(f"Failed to delete LXC {vmid}: {e}")
+            raise
+
+    def start_lxc(self, vmid: int):
+        logger.info(f"Starting LXC with VMID: {vmid}")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).lxc(vmid).status.start.post()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to start LXC {vmid}: {e}")
+            raise
+
+    def stop_lxc(self, vmid: int):
+        logger.info(f"Stopping LXC with VMID: {vmid}")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).lxc(vmid).status.stop.post()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to stop LXC {vmid}: {e}")
+            raise
+
+    def get_lxc_status(self, vmid: int):
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).lxc(vmid).status.current.get()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to get status for LXC {vmid}: {e}")
             raise
