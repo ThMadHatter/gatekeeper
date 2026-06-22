@@ -62,8 +62,10 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 - `POST /proxmox/stop-lxc/{vmid}`: Stop an LXC container.
 - `GET /proxmox/status-lxc/{vmid}`: Get the current status of an LXC container.
 - `GET /proxmox/tasks/{upid}`: Get the status of a Proxmox task.
-- `GET /proxmox/templates?storage=local`: List available templates on a storage.
-- `POST /proxmox/download-template`: Download an LXC template from a URL to storage.
+- `GET /proxmox/templates?storage=local`: List templates currently on a storage.
+- `GET /proxmox/available-templates`: List official templates available for download.
+- `POST /proxmox/download-official-template`: Download an official template to storage.
+- `POST /proxmox/download-template`: Download an LXC template from a custom URL to storage.
 - `DELETE /proxmox/delete-template/{storage}/{volume:path}`: Delete a template volume.
 - `DELETE /proxmox/delete-lxc/{vmid}`: Delete an LXC container.
 
@@ -95,7 +97,7 @@ To run it:
 export RUN_REAL_TESTS=true
 export TEST_VMID=999
 export TEST_STORAGE="local"
-export TEST_TEMPLATE_URL="http://download.proxmox.com/images/system/debian-11-standard_11.0-1_amd64.tar.gz"
+export TEST_TEMPLATE_NAME="debian-11-standard_11.0-1_amd64.tar.gz"
 export TEST_PASSWORD="your-test-password"
 export TEST_NET0="name=eth0,bridge=vmbr0,ip=dhcp"
 # Plus all required PROXMOX_* variables if not in .secrets

@@ -126,3 +126,24 @@ class ProxmoxService:
         except Exception as e:
             logger.error(f"Failed to delete template {volume} from {storage}: {e}")
             raise
+
+    def get_available_templates(self):
+        logger.info("Getting available official templates")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).aplinfo.get()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to get available templates: {e}")
+            raise
+
+    def download_official_template(self, storage: str, template: str):
+        logger.info(f"Downloading official template {template} to storage {storage}")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).vztmpl.post(
+                storage=storage,
+                template=template
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Failed to download official template: {e}")
+            raise

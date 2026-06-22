@@ -97,6 +97,50 @@ async def test_delete_lxc_endpoint_error():
         assert "Delete Error" in response.json()["detail"]
 
 @pytest.mark.asyncio
+async def test_get_available_templates_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.get_available_templates.return_value = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/available-templates")
+        assert response.status_code == 200
+        assert response.json()["data"] == []
+
+@pytest.mark.asyncio
+async def test_download_official_template_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.download_official_template.return_value = "UPID:down_off"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/download-official-template", json={
+                "storage": "local", "template": "debian-11"
+            })
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:down_off"
+
+@pytest.mark.asyncio
+async def test_get_available_templates_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.get_available_templates.side_effect = Exception("Avail Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/available-templates")
+        assert response.status_code == 500
+        assert "Avail Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_download_official_template_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.download_official_template.side_effect = Exception("Down Off Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/proxmox/download-official-template", json={
+                "storage": "local", "template": "debian-11"
+            })
+        assert response.status_code == 500
+        assert "Down Off Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
 async def test_execute_endpoint_success():
     with patch("app.routers.proxmox.ProxmoxService") as MockService:
         mock_instance = MockService.return_value

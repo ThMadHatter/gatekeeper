@@ -20,6 +20,10 @@ class TemplateDownloadRequest(BaseModel):
     url: str
     filename: str
 
+class OfficialTemplateDownloadRequest(BaseModel):
+    storage: str
+    template: str
+
 def get_proxmox_service():
     return ProxmoxService()
 
@@ -32,6 +36,25 @@ async def create_lxc(request: LXCCreateRequest, service: ProxmoxService = Depend
             ostemplate=request.ostemplate,
             hostname=request.hostname,
             **params
+        )
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/available-templates")
+async def get_available_templates(service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.get_available_templates()
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/download-official-template")
+async def download_official_template(request: OfficialTemplateDownloadRequest, service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.download_official_template(
+            storage=request.storage,
+            template=request.template
         )
         return {"status": "success", "data": result}
     except Exception as e:

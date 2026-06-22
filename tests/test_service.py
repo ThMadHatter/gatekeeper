@@ -134,3 +134,25 @@ def test_service_delete_template_error(service):
         with pytest.raises(Exception) as exc:
             service.delete_template("local", "vol")
         assert "Delete Error" in str(exc.value)
+
+def test_service_get_available_templates_success(service):
+    with patch.object(service.proxmox.nodes("dummy").aplinfo, "get", return_value=[]):
+        res = service.get_available_templates()
+        assert res == []
+
+def test_service_download_official_template_success(service):
+    with patch.object(service.proxmox.nodes("dummy").vztmpl, "post", return_value="UPID:down_off"):
+        res = service.download_official_template("local", "debian-11")
+        assert res == "UPID:down_off"
+
+def test_service_get_available_templates_error(service):
+    with patch.object(service.proxmox.nodes("dummy").aplinfo, "get", side_effect=Exception("Avail Error")):
+        with pytest.raises(Exception) as exc:
+            service.get_available_templates()
+        assert "Avail Error" in str(exc.value)
+
+def test_service_download_official_template_error(service):
+    with patch.object(service.proxmox.nodes("dummy").vztmpl, "post", side_effect=Exception("Down Off Error")):
+        with pytest.raises(Exception) as exc:
+            service.download_official_template("local", "debian-11")
+        assert "Down Off Error" in str(exc.value)
