@@ -61,6 +61,8 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 - `POST /proxmox/start-lxc/{vmid}`: Start an LXC container.
 - `POST /proxmox/stop-lxc/{vmid}`: Stop an LXC container.
 - `GET /proxmox/status-lxc/{vmid}`: Get the current status of an LXC container.
+- `GET /proxmox/tasks/{upid}`: Get the status of a Proxmox task.
+- `GET /proxmox/templates?storage=local`: List available templates on a storage.
 - `DELETE /proxmox/delete-lxc/{vmid}`: Delete an LXC container.
 
 ## Testing
@@ -89,7 +91,7 @@ To run the integration tests against a real Proxmox environment:
 ```bash
 export RUN_REAL_TESTS=true
 export TEST_VMID=999
-export TEST_TEMPLATE="local:vztmpl/debian-11-standard_11.0-1_amd64.tar.gz"
+export TEST_TEMPLATE="local:vztmpl/debian-11-standard_11.0-1_amd64.tar.gz" # Must exist on host
 export TEST_STORAGE="local-lvm"
 export TEST_PASSWORD="your-test-password"
 export TEST_NET0="name=eth0,bridge=vmbr0,ip=dhcp"

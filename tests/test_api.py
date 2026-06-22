@@ -155,3 +155,43 @@ async def test_get_status_endpoint_success():
             response = await ac.get("/proxmox/status-lxc/100")
         assert response.status_code == 200
         assert response.json()["data"] == {"status": "running"}
+
+@pytest.mark.asyncio
+async def test_get_task_status_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.get_task_status.return_value = {"status": "stopped"}
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/tasks/upid")
+        assert response.status_code == 200
+        assert response.json()["data"] == {"status": "stopped"}
+
+@pytest.mark.asyncio
+async def test_list_templates_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.list_templates.return_value = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/templates?storage=local")
+        assert response.status_code == 200
+        assert response.json()["data"] == []
+
+@pytest.mark.asyncio
+async def test_get_task_status_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.get_task_status.side_effect = Exception("Task Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/tasks/upid")
+        assert response.status_code == 500
+        assert "Task Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_list_templates_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.list_templates.side_effect = Exception("Template Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/proxmox/templates")
+        assert response.status_code == 500
+        assert "Template Error" in response.json()["detail"]

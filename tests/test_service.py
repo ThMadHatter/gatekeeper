@@ -90,3 +90,25 @@ def test_service_get_status_success(service):
     with patch.object(service.proxmox.nodes("dummy").lxc(100).status.current, "get", return_value={"status": "running"}):
         res = service.get_lxc_status(100)
         assert res == {"status": "running"}
+
+def test_service_get_task_status_success(service):
+    with patch.object(service.proxmox.nodes("dummy").tasks("upid").status, "get", return_value={"status": "stopped"}):
+        res = service.get_task_status("upid")
+        assert res == {"status": "stopped"}
+
+def test_service_list_templates_success(service):
+    with patch.object(service.proxmox.nodes("dummy").storage("local").content, "get", return_value=[]):
+        res = service.list_templates("local")
+        assert res == []
+
+def test_service_get_task_status_error(service):
+    with patch.object(service.proxmox.nodes("dummy").tasks("upid").status, "get", side_effect=Exception("Task Error")):
+        with pytest.raises(Exception) as exc:
+            service.get_task_status("upid")
+        assert "Task Error" in str(exc.value)
+
+def test_service_list_templates_error(service):
+    with patch.object(service.proxmox.nodes("dummy").storage("local").content, "get", side_effect=Exception("Template Error")):
+        with pytest.raises(Exception) as exc:
+            service.list_templates("local")
+        assert "Template Error" in str(exc.value)

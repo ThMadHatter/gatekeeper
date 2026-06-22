@@ -86,3 +86,20 @@ class ProxmoxService:
         except Exception as e:
             logger.error(f"Failed to get status for LXC {vmid}: {e}")
             raise
+
+    def get_task_status(self, upid: str):
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).tasks(upid).status.get()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to get task status for {upid}: {e}")
+            raise
+
+    def list_templates(self, storage: str = "local"):
+        logger.info(f"Listing templates on storage: {storage}")
+        try:
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).content.get(content="vztmpl")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to list templates on {storage}: {e}")
+            raise

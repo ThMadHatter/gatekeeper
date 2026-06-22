@@ -32,6 +32,22 @@ async def create_lxc(request: LXCCreateRequest, service: ProxmoxService = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/tasks/{upid}")
+async def get_task_status(upid: str, service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.get_task_status(upid=upid)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/templates")
+async def list_templates(storage: str = "local", service: ProxmoxService = Depends(get_proxmox_service)):
+    try:
+        result = service.list_templates(storage=storage)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/start-lxc/{vmid}")
 async def start_lxc(vmid: int, service: ProxmoxService = Depends(get_proxmox_service)):
     try:
