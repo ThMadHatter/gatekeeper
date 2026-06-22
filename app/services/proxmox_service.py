@@ -147,3 +147,19 @@ class ProxmoxService:
         except Exception as e:
             logger.error(f"Failed to download official template: {e}")
             raise
+
+    def upload_template(self, storage: str, filename: str, file_content: bytes):
+        logger.info(f"Uploading template {filename} to storage {storage}")
+        try:
+            # Using the Proxmox upload endpoint
+            # We pass 'content' as a regular parameter and 'filename' as a file in the multipart form
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).upload.post(
+                content="vztmpl",
+                files={
+                    'filename': (filename, file_content)
+                }
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Failed to upload template {filename}: {e}")
+            raise

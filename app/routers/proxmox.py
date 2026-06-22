@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from pydantic import BaseModel
 from app.services.proxmox_service import ProxmoxService
 from typing import Dict, Any, Optional
@@ -36,6 +36,23 @@ async def create_lxc(request: LXCCreateRequest, service: ProxmoxService = Depend
             ostemplate=request.ostemplate,
             hostname=request.hostname,
             **params
+        )
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload-template")
+async def upload_template(
+    storage: str = Form(...),
+    file: UploadFile = File(...),
+    service: ProxmoxService = Depends(get_proxmox_service)
+):
+    try:
+        content = await file.read()
+        result = service.upload_template(
+            storage=storage,
+            filename=file.filename,
+            file_content=content
         )
         return {"status": "success", "data": result}
     except Exception as e:

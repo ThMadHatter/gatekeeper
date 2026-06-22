@@ -66,6 +66,7 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 - `GET /proxmox/available-templates`: List official templates available for download.
 - `POST /proxmox/download-official-template`: Download an official template to storage.
 - `POST /proxmox/download-template`: Download an LXC template from a custom URL to storage.
+- `POST /proxmox/upload-template`: Upload a local LXC template file to storage.
 - `DELETE /proxmox/delete-template/{storage}/{volume:path}`: Delete a template volume.
 - `DELETE /proxmox/delete-lxc/{vmid}`: Delete an LXC container.
 
@@ -87,7 +88,7 @@ pytest
 ```
 
 ### Real Environment Integration Testing
-The integration test verifies the full lifecycle: **Download Template -> Create LXC -> Start -> Execute -> Stop -> Delete LXC -> Delete Template**.
+The integration test verifies the full lifecycle: **Download Template locally -> Upload to Proxmox -> Create LXC -> Start -> Execute -> Stop -> Delete LXC -> Delete Template**.
 
 To run it:
 1. Ensure your `.secrets` file or environment variables are correctly set.

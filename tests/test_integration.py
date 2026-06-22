@@ -2,6 +2,7 @@ import pytest
 import os
 import asyncio
 import logging
+import httpx
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from unittest.mock import patch
@@ -28,15 +29,17 @@ async def wait_for_task(ac, upid, timeout_mins=5):
 async def test_full_lxc_lifecycle():
     """
     Tests the full lifecycle:
-    Download Template -> Create LXC -> Start -> Execute -> Stop -> Delete LXC -> Delete Template
+    Download Template locally -> Upload to Proxmox -> Create LXC -> Start -> Execute -> Stop -> Delete LXC -> Delete Template
     """
 
     if RUN_REAL_TESTS:
         test_vmid = int(os.getenv("TEST_VMID", "9999"))
         test_storage = os.getenv("TEST_STORAGE", "local")
-        # Template name used for official download (e.g., 'debian-11-standard_11.0-1_amd64.tar.gz')
-        test_template_name = os.getenv("TEST_TEMPLATE_NAME", "debian-11-standard_11.0-1_amd64.tar.gz")
-        test_hostname = "gatekeeper-full-lifecycle-test"
+        # Using a very small template for faster upload during tests if possible,
+        # but defaulting to standard debian
+        template_url = os.getenv("TEST_TEMPLATE_URL", "http://download.proxmox.com/images/system/debian-11-standard_11.0-1_amd64.tar.gz")
+        template_filename = "test-upload-template.tar.gz"
+        test_hostname = "gatekeeper-upload-test"
 
         additional_params = {}
         if os.getenv("TEST_STORAGE"):
@@ -46,31 +49,27 @@ async def test_full_lxc_lifecycle():
         if os.getenv("TEST_NET0"):
             additional_params["net0"] = os.getenv("TEST_NET0")
 
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            # 1. Ensure Template Exists (Download if missing)
-            print(f"\nChecking for template {test_template_name} on {test_storage}...")
-            templates_resp = await ac.get(f"/proxmox/templates?storage={test_storage}")
-            assert templates_resp.status_code == 200
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", timeout=600) as ac:
+            # 1. Download Template Locally
+            print(f"\nDownloading template locally from {template_url}...")
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(template_url)
+                resp.raise_for_status()
+                template_content = resp.content
 
-            template_vol = None
-            for t in templates_resp.json()["data"]:
-                if test_template_name in t["volid"]:
-                    template_vol = t["volid"]
-                    break
+            # 2. Upload to Proxmox
+            print(f"Uploading template to Proxmox storage {test_storage}...")
+            files = {'file': (template_filename, template_content)}
+            data = {'storage': test_storage}
+            response = await ac.post("/proxmox/upload-template", data=data, files=files)
+            assert response.status_code == 200, f"Upload failed: {response.text}"
+            upload_upid = response.json()["data"]
+            await wait_for_task(ac, upload_upid)
 
-            if not template_vol:
-                print(f"Template {test_template_name} not found. Attempting official download...")
-                download_resp = await ac.post("/proxmox/download-official-template", json={
-                    "storage": test_storage,
-                    "template": test_template_name
-                })
-                assert download_resp.status_code == 200, f"Download failed: {download_resp.text}"
-                await wait_for_task(ac, download_resp.json()["data"])
-                template_vol = f"{test_storage}:vztmpl/{test_template_name}"
-
+            template_vol = f"{test_storage}:vztmpl/{template_filename}"
             print(f"Using template volume: {template_vol}")
 
-            # 2. Create LXC
+            # 3. Create LXC
             print(f"Creating LXC {test_vmid}...")
             response = await ac.post("/proxmox/create-lxc", json={
                 "vmid": test_vmid,
@@ -81,7 +80,7 @@ async def test_full_lxc_lifecycle():
             assert response.status_code == 200
             await wait_for_task(ac, response.json()["data"])
 
-            # 3. Start
+            # 4. Start
             print(f"Starting LXC {test_vmid}...")
             await ac.post(f"/proxmox/start-lxc/{test_vmid}")
 
@@ -95,25 +94,30 @@ async def test_full_lxc_lifecycle():
                     break
             assert running, f"LXC failed to start. Status: {status_resp.text}"
 
-            # 4. Execute
+            # 5. Execute
             print(f"Executing command in LXC {test_vmid}...")
             response = await ac.post("/proxmox/execute", json={"vmid": test_vmid, "command": "uptime"})
             assert response.status_code == 200
 
-            # 5. Stop
+            # 6. Stop
             print(f"Stopping LXC {test_vmid}...")
             await ac.post(f"/proxmox/stop-lxc/{test_vmid}")
             await asyncio.sleep(5)
 
-            # 6. Delete LXC
+            # 7. Delete LXC
             print(f"Deleting LXC {test_vmid}...")
             await ac.delete(f"/proxmox/delete-lxc/{test_vmid}")
+
+            # 8. Delete Template
+            print(f"Deleting template {template_vol}...")
+            volume = f"vztmpl/{template_filename}"
+            await ac.delete(f"/proxmox/delete-template/{test_storage}/{volume}")
 
     else:
         # Mocked version
         with patch("app.routers.proxmox.ProxmoxService") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.list_templates.return_value = [{"volid": "local:vztmpl/debian-11.tar.gz"}]
+            mock_instance.upload_template.return_value = "UPID:upload"
             mock_instance.get_task_status.return_value = {"status": "stopped", "exitstatus": "OK"}
             mock_instance.create_lxc.return_value = "UPID:create"
             mock_instance.start_lxc.return_value = "UPID:start"
@@ -121,11 +125,14 @@ async def test_full_lxc_lifecycle():
             mock_instance.execute_command.return_value = "UPID:exec"
             mock_instance.stop_lxc.return_value = "UPID:stop"
             mock_instance.delete_lxc.return_value = "UPID:delete"
+            mock_instance.delete_template.return_value = "UPID:delete_temp"
 
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                await ac.get("/proxmox/templates?storage=local")
+                # Mocking file upload
+                await ac.post("/proxmox/upload-template", data={"storage": "s"}, files={"file": ("f", b"c")})
                 await ac.post("/proxmox/create-lxc", json={"vmid": 100, "ostemplate": "t", "hostname": "h"})
                 await ac.post("/proxmox/start-lxc/100")
                 await ac.post("/proxmox/execute", json={"vmid": 100, "command": "uptime"})
                 await ac.post("/proxmox/stop-lxc/100")
                 await ac.delete("/proxmox/delete-lxc/100")
+                await ac.delete("/proxmox/delete-template/s/vztmpl/f")

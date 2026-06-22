@@ -141,6 +141,34 @@ async def test_download_official_template_endpoint_error():
         assert "Down Off Error" in response.json()["detail"]
 
 @pytest.mark.asyncio
+async def test_upload_template_endpoint_success():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.upload_template.return_value = "UPID:upload"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post(
+                "/proxmox/upload-template",
+                data={"storage": "local"},
+                files={"file": ("test.tar.gz", b"content")}
+            )
+        assert response.status_code == 200
+        assert response.json()["data"] == "UPID:upload"
+
+@pytest.mark.asyncio
+async def test_upload_template_endpoint_error():
+    with patch("app.routers.proxmox.ProxmoxService") as MockService:
+        mock_instance = MockService.return_value
+        mock_instance.upload_template.side_effect = Exception("Upload Error")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post(
+                "/proxmox/upload-template",
+                data={"storage": "local"},
+                files={"file": ("test.tar.gz", b"content")}
+            )
+        assert response.status_code == 500
+        assert "Upload Error" in response.json()["detail"]
+
+@pytest.mark.asyncio
 async def test_execute_endpoint_success():
     with patch("app.routers.proxmox.ProxmoxService") as MockService:
         mock_instance = MockService.return_value
