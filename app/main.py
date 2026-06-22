@@ -12,11 +12,11 @@ log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 handlers = [logging.StreamHandler(sys.stdout)]
 
 # Optional log file
-try:
-    if settings.LOG_FILE:
+if settings.LOG_FILE:
+    try:
         handlers.append(logging.FileHandler(settings.LOG_FILE))
-except Exception as e:
-    print(f"Warning: Could not set up log file handler: {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"Warning: Could not set up log file handler: {e}", file=sys.stderr)
 
 logging.basicConfig(
     level=logging_level,
