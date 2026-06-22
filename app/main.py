@@ -2,7 +2,7 @@ import logging
 import sys
 import time
 from fastapi import FastAPI, Request
-from app.routers import proxmox
+from app.routers import proxmox, repos, help
 from app.config import settings
 
 # Configure Logging
@@ -46,6 +46,8 @@ async def log_requests(request: Request, call_next):
     return response
 
 app.include_router(proxmox.router)
+app.include_router(repos.router)
+app.include_router(help.router)
 
 @app.get("/")
 async def root():

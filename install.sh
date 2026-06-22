@@ -13,6 +13,7 @@ fi
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$APP_DIR/venv"
+DATA_DIR="$APP_DIR/data"
 SECRETS_FILE="$APP_DIR/.secrets"
 SERVICE_NAME="gatekeeper"
 USER_NAME=$(logname || echo "root")
@@ -24,10 +25,16 @@ echo "Installing system dependencies..."
 apt-get update
 apt-get install -y python3-venv python3-pip
 
-# 3. Create Python virtual environment
+# 3. Create Python virtual environment and data directory
 if [ ! -d "$VENV_DIR" ]; then
     echo "Creating virtual environment..."
     python3 -m venv "$VENV_DIR"
+fi
+
+if [ ! -d "$DATA_DIR" ]; then
+    echo "Creating data directory..."
+    mkdir -p "$DATA_DIR"
+    chown "$USER_NAME":"$USER_NAME" "$DATA_DIR"
 fi
 
 # 4. Install requirements

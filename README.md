@@ -70,6 +70,16 @@ A clean, production-grade FastAPI application designed to run inside a secure De
 - `DELETE /proxmox/delete-template/{storage}/{volume:path}`: Delete a template volume.
 - `DELETE /proxmox/delete-lxc/{vmid}`: Delete an LXC container.
 
+### Template Repository Management
+
+- `GET /repos`: List registered online template repositories.
+- `POST /repos`: Register a new template repository URL (validates URL on add).
+- `DELETE /repos/{name}`: Remove a registered repository.
+
+### Documentation & Help
+
+- `GET /help`: Show a detailed guide of all available API endpoints and their usage.
+
 ## Testing
 
 The repository includes a comprehensive test suite using `pytest`.
