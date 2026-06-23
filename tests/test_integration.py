@@ -35,7 +35,8 @@ async def test_full_lxc_lifecycle():
 
     if RUN_REAL_TESTS:
         test_vmid = int(os.getenv("TEST_VMID", "9999"))
-        test_storage = os.getenv("TEST_STORAGE", "local")
+        test_template_storage = os.getenv("TEST_TEMPLATE_STORAGE", "local")
+        test_rootfs_storage = os.getenv("TEST_ROOTFS_STORAGE", os.getenv("TEST_STORAGE", "local-lvm"))
         # Using a small template (Alpine Linux) for faster upload during tests.
         template_url_raw = os.getenv("TEST_TEMPLATE_URL", "https://mirror.accum.se/mirror/linuxcontainers.org/images/alpine/3.18/amd64/default/20230607_13:00/rootfs.tar.xz")
         template_filename = os.getenv("TEST_TEMPLATE_NAME", "alpine-3.18-test.tar.xz")
@@ -60,10 +61,10 @@ async def test_full_lxc_lifecycle():
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", timeout=600) as ac:
             # 0. Cleanup any existing template for idempotency
-            print(f"Pre-cleanup of existing template {template_filename} on {test_storage}...")
-            volume = f"{test_storage}:vztmpl/{template_filename}"
+            print(f"Pre-cleanup of existing template {template_filename} on {test_template_storage}...")
+            volume_id = f"{test_template_storage}:vztmpl/{template_filename}"
             try:
-                await ac.delete(f"/proxmox/delete-template/{test_storage}/{volume}")
+                await ac.delete(f"/proxmox/delete-template/{test_template_storage}/{volume_id}")
             except Exception as e:
                 print(f"Warning: pre-cleanup failed: {e}")
 
@@ -81,19 +82,20 @@ async def test_full_lxc_lifecycle():
                     pytest.fail(f"Downloaded template is HTML, not a binary image. Check your URL: {template_url}\nSnippet: {snippet}")
 
             # 2. Upload to Proxmox
-            print(f"Uploading template to Proxmox storage {test_storage} ({len(template_content)} bytes)...")
+            print(f"Uploading template to Proxmox storage {test_template_storage} ({len(template_content)} bytes)...")
             files = {'file': (template_filename, template_content)}
-            data = {'storage': test_storage}
+            data = {'storage': test_template_storage}
             response = await ac.post("/proxmox/upload-template", data=data, files=files)
             assert response.status_code == 200, f"Upload failed: {response.text}"
             upload_upid = response.json()["data"]
             await wait_for_task(ac, upload_upid)
 
-            template_vol = f"{test_storage}:vztmpl/{template_filename}"
+            template_vol = f"{test_template_storage}:vztmpl/{template_filename}"
             print(f"Using template volume: {template_vol}")
 
             # 3. Create LXC
-            print(f"Creating LXC {test_vmid}...")
+            print(f"Creating LXC {test_vmid} on storage {test_rootfs_storage}...")
+            additional_params["storage"] = test_rootfs_storage
             response = await ac.post("/proxmox/create-lxc", json={
                 "vmid": test_vmid,
                 "ostemplate": template_vol,
@@ -132,9 +134,9 @@ async def test_full_lxc_lifecycle():
             await ac.delete(f"/proxmox/delete-lxc/{test_vmid}")
 
             # 8. Delete Template
-            print(f"Deleting template {template_vol}...")
+            print(f"Deleting template {template_vol} from {test_template_storage}...")
             # Use the full volid for deletion consistency
-            await ac.delete(f"/proxmox/delete-template/{test_storage}/{template_vol}")
+            await ac.delete(f"/proxmox/delete-template/{test_template_storage}/{template_vol}")
 
     else:
         # Mocked version

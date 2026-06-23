@@ -207,14 +207,15 @@ class ProxmoxService:
         )
 
         cmd = [
-            "curl", "-k", "--fail-with-body", upload_url,
+            "curl", "-k", "--fail-with-body", "-v", upload_url,
             "-H", auth_header,
+            "-H", "Expect:",
             "-F", "content=vztmpl",
             "-F", f"filename=@{file_path};filename={filename};type=application/octet-stream",
         ]
 
         # Redacted command for logging
-        safe_cmd = [c if "PVEAPIToken" not in c else "-H Authorization: PVEAPIToken=<redacted>" for c in cmd]
+        safe_cmd = [c if "PVEAPIToken" not in c else "PVEAPIToken=<redacted>" for c in cmd]
         logger.info(f"Uploading template using curl fallback: {' '.join(safe_cmd)}")
 
         try:
@@ -247,6 +248,7 @@ class ProxmoxService:
             ),
             "Accept": "*/*",
             "Connection": "close",
+            "Expect": "",
         }
 
         try:

@@ -109,7 +109,8 @@ To run it:
 ```bash
 export RUN_REAL_TESTS=true
 export TEST_VMID=999
-export TEST_STORAGE="local"
+export TEST_TEMPLATE_STORAGE="local"
+export TEST_ROOTFS_STORAGE="local-lvm"
 # Note: Use a valid, reachable template URL and filename for integration tests.
 # If TEST_TEMPLATE_URL ends in '/', TEST_TEMPLATE_NAME will be appended.
 export TEST_TEMPLATE_URL="http://download.proxmox.com/images/system/"
