@@ -3,6 +3,7 @@ from app.config import settings
 import logging
 import urllib3
 import io
+import requests
 
 # Suppress InsecureRequestWarning for self-signed Proxmox certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -155,29 +156,50 @@ class ProxmoxService:
             raise
 
     def upload_template(self, storage: str, filename: str, file_content: bytes):
-        logger.info(f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)")
+        logger.info(
+            f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)"
+        )
+
+        # Build the direct Proxmox API URL for upload
+        host = settings.PROXMOX_HOST
+        if not host.startswith("http"):
+            host = f"https://{host}:8006"
+
+        upload_url = (
+            f"{host}/api2/json/"
+            f"nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
+        )
+
+        headers = {
+            "Authorization": (
+                f"PVEAPIToken={settings.PROXMOX_USER}!"
+                f"{settings.PROXMOX_TOKEN_NAME}={settings.PROXMOX_TOKEN_VALUE}"
+            )
+        }
+
+        data = {"content": "vztmpl"}
+
+        files = {
+            "filename": (
+                filename,
+                io.BytesIO(file_content),
+                "application/octet-stream",
+            )
+        }
+
         try:
-            # Construct the direct Proxmox API URL for upload
-            # Handling both cases: PROXMOX_HOST being a domain/IP or a full URL
-            host = settings.PROXMOX_HOST
-            if not host.startswith('http'):
-                host = f"https://{host}:8006"
-
-            url = f"{host}/api2/json/nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
-
-            # Using the underlying requests session from Proxmoxer
-            # This ensures headers (Authorization) and SSL settings are correctly applied.
-            # We use the 'files' parameter which exactly emulates curl -F
-            file_obj = io.BytesIO(file_content)
-            response = self.proxmox.session.post(
-                url,
-                data={'content': 'vztmpl'},
-                files={'filename': (filename, file_obj, 'application/octet-stream')},
+            # Perform upload with direct requests.post to avoid Proxmoxer URL issues
+            response = requests.post(
+                upload_url,
+                headers=headers,
+                data=data,
+                files=files,
                 verify=False,
-                timeout=600
+                timeout=600,
             )
             response.raise_for_status()
-            return response.json()['data']
+            return response.json()["data"]
+
         except Exception as e:
             logger.error(f"Failed to upload template {filename}: {e}")
             raise
