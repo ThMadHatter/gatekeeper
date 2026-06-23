@@ -4,6 +4,7 @@ import logging
 import urllib3
 import io
 import requests
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 # Suppress InsecureRequestWarning for self-signed Proxmox certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -170,33 +171,39 @@ class ProxmoxService:
             f"nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
         )
 
+        multipart_data = MultipartEncoder(
+            fields={
+                "content": "vztmpl",
+                "filename": (
+                    filename,
+                    io.BytesIO(file_content),
+                    "application/octet-stream",
+                ),
+            }
+        )
+
         headers = {
             "Authorization": (
                 f"PVEAPIToken={settings.PROXMOX_USER}!"
                 f"{settings.PROXMOX_TOKEN_NAME}={settings.PROXMOX_TOKEN_VALUE}"
-            )
-        }
-
-        data = {"content": "vztmpl"}
-
-        files = {
-            "filename": (
-                filename,
-                io.BytesIO(file_content),
-                "application/octet-stream",
-            )
+            ),
+            "Content-Type": multipart_data.content_type,
+            "Expect": "100-continue",
         }
 
         try:
-            # Perform upload with direct requests.post to avoid Proxmoxer URL issues
-            response = requests.post(
+            # Use a Session and set trust_env=False to avoid proxy interference
+            session = requests.Session()
+            session.trust_env = False
+
+            response = session.post(
                 upload_url,
                 headers=headers,
-                data=data,
-                files=files,
+                data=multipart_data,
                 verify=False,
                 timeout=600,
             )
+
             response.raise_for_status()
             return response.json()["data"]
 

@@ -160,12 +160,12 @@ def test_service_download_official_template_error(service):
 def test_service_upload_template_success(service):
     mock_resp = MagicMock()
     mock_resp.json.return_value = {"data": "UPID:upload"}
-    with patch("requests.post", return_value=mock_resp):
+    with patch("requests.Session.post", return_value=mock_resp):
         res = service.upload_template("local", "file", b"content")
         assert res == "UPID:upload"
 
 def test_service_upload_template_error(service):
-    with patch("requests.post", side_effect=Exception("Upload Error")):
+    with patch("requests.Session.post", side_effect=Exception("Upload Error")):
         with pytest.raises(Exception) as exc:
             service.upload_template("local", "file", b"content")
         assert "Upload Error" in str(exc.value)
