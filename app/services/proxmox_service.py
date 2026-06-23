@@ -2,6 +2,7 @@ from proxmoxer import ProxmoxAPI
 from app.config import settings
 import logging
 import urllib3
+import io
 
 # Suppress InsecureRequestWarning for self-signed Proxmox certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -157,13 +158,12 @@ class ProxmoxService:
         logger.info(f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)")
         try:
             # Using the Proxmox upload endpoint
-            # Proxmoxer passes extra kwargs to the underlying requests library.
-            # To ensure a proper multipart/form-data upload, we use the 'files' parameter.
+            # Proxmoxer handles file uploads by accepting a file-like object in the 'filename' parameter
+            # for the multipart form, but we must use a tuple (name, file-like-object) to be safe.
+            file_obj = io.BytesIO(file_content)
             result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).upload.post(
                 content="vztmpl",
-                files={
-                    'filename': (filename, file_content)
-                }
+                filename=(filename, file_obj)
             )
             return result
         except Exception as e:
