@@ -144,7 +144,7 @@ async def test_download_official_template_endpoint_error():
 async def test_upload_template_endpoint_success():
     with patch("app.routers.proxmox.ProxmoxService") as MockService:
         mock_instance = MockService.return_value
-        mock_instance.upload_template.return_value = "UPID:upload"
+        mock_instance.upload_template_from_path.return_value = "UPID:upload"
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/proxmox/upload-template",
@@ -158,7 +158,7 @@ async def test_upload_template_endpoint_success():
 async def test_upload_template_endpoint_error():
     with patch("app.routers.proxmox.ProxmoxService") as MockService:
         mock_instance = MockService.return_value
-        mock_instance.upload_template.side_effect = Exception("Upload Error")
+        mock_instance.upload_template_from_path.side_effect = Exception("Upload Error")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/proxmox/upload-template",

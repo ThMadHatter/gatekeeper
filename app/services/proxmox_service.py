@@ -4,7 +4,8 @@ import logging
 import urllib3
 import io
 import requests
-from requests_toolbelt.multipart.encoder import MultipartEncoder
+import os
+import tempfile
 
 # Suppress InsecureRequestWarning for self-signed Proxmox certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -156,57 +157,71 @@ class ProxmoxService:
             logger.error(f"Failed to download official template: {e}")
             raise
 
-    def upload_template(self, storage: str, filename: str, file_content: bytes):
-        logger.info(
-            f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)"
-        )
+    def upload_template_from_path(self, storage: str, filename: str, file_path: str):
+        file_size = os.path.getsize(file_path)
+        logger.info(f"Uploading template {filename} to storage {storage} from {file_path} ({file_size} bytes)")
 
         # Build the direct Proxmox API URL for upload
         host = settings.PROXMOX_HOST
         if not host.startswith("http"):
             host = f"https://{host}:8006"
 
-        upload_url = (
-            f"{host}/api2/json/"
-            f"nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
-        )
-
-        multipart_data = MultipartEncoder(
-            fields={
-                "content": "vztmpl",
-                "filename": (
-                    filename,
-                    io.BytesIO(file_content),
-                    "application/octet-stream",
-                ),
-            }
-        )
+        upload_url = f"{host}/api2/json/nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
 
         headers = {
             "Authorization": (
                 f"PVEAPIToken={settings.PROXMOX_USER}!"
                 f"{settings.PROXMOX_TOKEN_NAME}={settings.PROXMOX_TOKEN_VALUE}"
             ),
-            "Content-Type": multipart_data.content_type,
-            "Expect": "100-continue",
+            "Accept": "*/*",
+            "Connection": "close",
         }
 
         try:
-            # Use a Session and set trust_env=False to avoid proxy interference
-            session = requests.Session()
-            session.trust_env = False
+            with requests.Session() as session:
+                session.trust_env = False
 
-            response = session.post(
-                upload_url,
-                headers=headers,
-                data=multipart_data,
-                verify=False,
-                timeout=600,
-            )
+                with open(file_path, "rb") as f:
+                    files = {
+                        "filename": (
+                            filename,
+                            f,
+                            "application/octet-stream",
+                        )
+                    }
+                    data = {"content": "vztmpl"}
+
+                    response = session.post(
+                        upload_url,
+                        headers=headers,
+                        data=data,
+                        files=files,
+                        verify=False,
+                        timeout=600,
+                    )
+
+            if response.status_code >= 400:
+                logger.error(f"Upload failed with status {response.status_code}: {response.text}")
 
             response.raise_for_status()
             return response.json()["data"]
 
         except Exception as e:
-            logger.error(f"Failed to upload template {filename}: {e}")
+            logger.error(f"Failed to upload template {filename} from {file_path}: {e}")
             raise
+
+    def upload_template(self, storage: str, filename: str, file_content: bytes):
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}") as tmp:
+                tmp_path = tmp.name
+                tmp.write(file_content)
+
+            return self.upload_template_from_path(
+                storage=storage,
+                filename=filename,
+                file_path=tmp_path,
+            )
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)

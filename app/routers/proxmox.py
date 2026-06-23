@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from pydantic import BaseModel
 from app.services.proxmox_service import ProxmoxService
 from typing import Dict, Any, Optional
+import os
+import tempfile
+import shutil
 
 router = APIRouter(prefix="/proxmox", tags=["proxmox"])
 
@@ -47,16 +50,25 @@ async def upload_template(
     file: UploadFile = File(...),
     service: ProxmoxService = Depends(get_proxmox_service)
 ):
+    suffix = f"_{file.filename}" if file.filename else ""
+    tmp_path = None
+
     try:
-        content = await file.read()
-        result = service.upload_template(
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp_path = tmp.name
+            shutil.copyfileobj(file.file, tmp)
+
+        result = service.upload_template_from_path(
             storage=storage,
             filename=file.filename,
-            file_content=content
+            file_path=tmp_path,
         )
         return {"status": "success", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 @router.get("/available-templates")
 async def get_available_templates(service: ProxmoxService = Depends(get_proxmox_service)):

@@ -157,15 +157,29 @@ def test_service_download_official_template_error(service):
             service.download_official_template("local", "debian-11")
         assert "Down Off Error" in str(exc.value)
 
-def test_service_upload_template_success(service):
+def test_service_upload_template_from_path_success(service):
     mock_resp = MagicMock()
+    mock_resp.status_code = 200
     mock_resp.json.return_value = {"data": "UPID:upload"}
     with patch("requests.Session.post", return_value=mock_resp):
-        res = service.upload_template("local", "file", b"content")
-        assert res == "UPID:upload"
+        with patch("os.path.getsize", return_value=100):
+            with patch("builtins.open"):
+                res = service.upload_template_from_path("local", "file", "path")
+                assert res == "UPID:upload"
 
-def test_service_upload_template_error(service):
-    with patch("requests.Session.post", side_effect=Exception("Upload Error")):
-        with pytest.raises(Exception) as exc:
-            service.upload_template("local", "file", b"content")
-        assert "Upload Error" in str(exc.value)
+def test_service_upload_template_from_path_error(service):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 500
+    mock_resp.text = "Error detail"
+    mock_resp.raise_for_status.side_effect = Exception("HTTP Error")
+    with patch("requests.Session.post", return_value=mock_resp):
+        with patch("os.path.getsize", return_value=100):
+            with patch("builtins.open"):
+                with pytest.raises(Exception) as exc:
+                    service.upload_template_from_path("local", "file", "path")
+                assert "HTTP Error" in str(exc.value)
+
+def test_service_upload_template_wrapper(service):
+    with patch.object(service, "upload_template_from_path", return_value="UPID:wrapper"):
+        res = service.upload_template("local", "file", b"content")
+        assert res == "UPID:wrapper"
