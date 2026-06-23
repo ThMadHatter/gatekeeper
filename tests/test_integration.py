@@ -3,6 +3,7 @@ import os
 import asyncio
 import logging
 import httpx
+import urllib.parse
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from unittest.mock import patch
@@ -39,9 +40,11 @@ async def test_full_lxc_lifecycle():
         template_url_raw = os.getenv("TEST_TEMPLATE_URL", "https://mirror.accum.se/mirror/linuxcontainers.org/images/alpine/3.18/amd64/default/20230607_13:00/rootfs.tar.xz")
         template_filename = os.getenv("TEST_TEMPLATE_NAME", "alpine-3.18-test.tar.xz")
 
-        # If URL is a directory, append the filename
-        if template_url_raw.endswith("/") and template_filename:
-            template_url = f"{template_url_raw}{template_filename}"
+        # If URL is a directory or base URL, append the filename intelligently
+        if template_filename:
+            # Ensure base URL has a trailing slash for urljoin to work correctly
+            base_url = template_url_raw if template_url_raw.endswith("/") else f"{template_url_raw}/"
+            template_url = urllib.parse.urljoin(base_url, template_filename)
         else:
             template_url = template_url_raw
 
