@@ -111,9 +111,9 @@ export RUN_REAL_TESTS=true
 export TEST_VMID=999
 export TEST_STORAGE="local"
 # Note: Use a valid, reachable template URL and filename for integration tests.
-# Ensure the URL points to the actual binary file, not a directory listing.
-export TEST_TEMPLATE_URL="https://mirror.accum.se/mirror/linuxcontainers.org/images/alpine/3.18/amd64/default/20230607_13:00/rootfs.tar.xz"
-export TEST_TEMPLATE_NAME="alpine-3.18-test.tar.xz"
+# If TEST_TEMPLATE_URL ends in '/', TEST_TEMPLATE_NAME will be appended.
+export TEST_TEMPLATE_URL="http://download.proxmox.com/images/system/"
+export TEST_TEMPLATE_NAME="debian-13-standard_13.1-2_amd64.tar.zst"
 
 # Troubleshooting Uploads:
 # If uploads fail with "RemoteDisconnected", check your Proxmox host's firewall
