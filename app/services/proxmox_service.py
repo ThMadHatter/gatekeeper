@@ -157,16 +157,27 @@ class ProxmoxService:
     def upload_template(self, storage: str, filename: str, file_content: bytes):
         logger.info(f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)")
         try:
-            # Using the high-level Proxmoxer API for multipart upload
-            # Proxmoxer expects a file-like object in the 'filename' parameter
-            # for the multipart form. We wrap the bytes in io.BytesIO.
-            # Passing it as a tuple (filename, file_obj) ensures the correct name is sent.
+            # Construct the direct Proxmox API URL for upload
+            # Handling both cases: PROXMOX_HOST being a domain/IP or a full URL
+            host = settings.PROXMOX_HOST
+            if not host.startswith('http'):
+                host = f"https://{host}:8006"
+
+            url = f"{host}/api2/json/nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
+
+            # Using the underlying requests session from Proxmoxer
+            # This ensures headers (Authorization) and SSL settings are correctly applied.
+            # We use the 'files' parameter which exactly emulates curl -F
             file_obj = io.BytesIO(file_content)
-            result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).upload.post(
-                content="vztmpl",
-                filename=(filename, file_obj)
+            response = self.proxmox.session.post(
+                url,
+                data={'content': 'vztmpl'},
+                files={'filename': (filename, file_obj, 'application/octet-stream')},
+                verify=False,
+                timeout=600
             )
-            return result
+            response.raise_for_status()
+            return response.json()['data']
         except Exception as e:
             logger.error(f"Failed to upload template {filename}: {e}")
             raise
