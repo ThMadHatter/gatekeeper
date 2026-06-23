@@ -3,7 +3,6 @@ from app.config import settings
 import logging
 import urllib3
 import io
-from requests_toolbelt import MultipartEncoder
 
 # Suppress InsecureRequestWarning for self-signed Proxmox certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -158,30 +157,16 @@ class ProxmoxService:
     def upload_template(self, storage: str, filename: str, file_content: bytes):
         logger.info(f"Uploading template {filename} to storage {storage} ({len(file_content)} bytes)")
         try:
-            # Using the Proxmox upload endpoint with requests_toolbelt for reliable multipart/form-data
-            m = MultipartEncoder(
-                fields={
-                    'content': 'vztmpl',
-                    'filename': (filename, io.BytesIO(file_content), 'application/octet-stream')
-                }
+            # Using the high-level Proxmoxer API for multipart upload
+            # Proxmoxer expects a file-like object in the 'filename' parameter
+            # for the multipart form. We wrap the bytes in io.BytesIO.
+            # Passing it as a tuple (filename, file_obj) ensures the correct name is sent.
+            file_obj = io.BytesIO(file_content)
+            result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).upload.post(
+                content="vztmpl",
+                filename=(filename, file_obj)
             )
-
-            # Use the underlying requests session from the ProxmoxAPI instance
-            node = settings.PROXMOX_NODE
-            url = f"{settings.PROXMOX_HOST}/api2/json/nodes/{node}/storage/{storage}/upload"
-
-            # The 'proxmox' object from proxmoxer has a 'session' attribute if using 'requests' backend (default)
-            # or we can use the high-level API which uses session.request
-            # However, direct POST with requests is often more reliable for MultipartEncoder
-            response = self.proxmox.session.post(
-                url,
-                data=m,
-                headers={'Content-Type': m.content_type},
-                verify=False,
-                timeout=600
-            )
-            response.raise_for_status()
-            return response.json()['data']
+            return result
         except Exception as e:
             logger.error(f"Failed to upload template {filename}: {e}")
             raise

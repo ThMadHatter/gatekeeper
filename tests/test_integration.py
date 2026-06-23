@@ -69,7 +69,8 @@ async def test_full_lxc_lifecycle():
                 print(f"Downloaded {len(template_content)} bytes (Content-Type: {content_type})")
 
                 if "text/html" in content_type:
-                    pytest.fail(f"Downloaded template is HTML, not a binary image. Check your URL: {template_url}")
+                    snippet = template_content[:200].decode(errors='ignore')
+                    pytest.fail(f"Downloaded template is HTML, not a binary image. Check your URL: {template_url}\nSnippet: {snippet}")
 
             # 2. Upload to Proxmox
             print(f"Uploading template to Proxmox storage {test_storage} ({len(template_content)} bytes)...")
