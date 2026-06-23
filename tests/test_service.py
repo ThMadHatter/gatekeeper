@@ -172,12 +172,35 @@ def test_service_upload_template_from_path_error(service):
     mock_resp.status_code = 500
     mock_resp.text = "Error detail"
     mock_resp.raise_for_status.side_effect = Exception("HTTP Error")
+    mock_resp.ok = False
     with patch("requests.Session.post", return_value=mock_resp):
         with patch("os.path.getsize", return_value=100):
             with patch("builtins.open"):
                 with pytest.raises(Exception) as exc:
                     service.upload_template_from_path("local", "file", "path")
                 assert "HTTP Error" in str(exc.value)
+
+def test_service_upload_template_from_path_curl_fallback(service):
+    # Mock requests to fail with a connection error
+    with patch("requests.Session.post", side_effect=Exception("RemoteDisconnected")):
+        with patch("os.path.getsize", return_value=100):
+            with patch("builtins.open"):
+                # Mock subprocess to succeed
+                mock_proc = MagicMock()
+                mock_proc.returncode = 0
+                mock_proc.stdout = '{"data": "UPID:curl"}'
+                with patch("subprocess.run", return_value=mock_proc):
+                    res = service.upload_template_from_path("local", "file", "path")
+                    assert res == "UPID:curl"
+
+def test_service_upload_template_curl_error(service):
+    mock_proc = MagicMock()
+    mock_proc.returncode = 1
+    mock_proc.stderr = "Curl failed"
+    with patch("subprocess.run", return_value=mock_proc):
+        with pytest.raises(RuntimeError) as exc:
+            service.upload_template_from_path_with_curl("local", "file", "path")
+        assert "curl upload failed" in str(exc.value)
 
 def test_service_upload_template_wrapper(service):
     with patch.object(service, "upload_template_from_path", return_value="UPID:wrapper"):

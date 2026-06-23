@@ -6,6 +6,8 @@ import io
 import requests
 import os
 import tempfile
+import json
+import subprocess
 
 # Suppress InsecureRequestWarning for self-signed Proxmox certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -157,6 +159,41 @@ class ProxmoxService:
             logger.error(f"Failed to download official template: {e}")
             raise
 
+    def upload_template_from_path_with_curl(self, storage: str, filename: str, file_path: str):
+        # Build the direct Proxmox API URL for upload
+        host = settings.PROXMOX_HOST
+        if not host.startswith("http"):
+            host = f"https://{host}:8006"
+
+        upload_url = f"{host}/api2/json/nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
+
+        auth_header = (
+            f"Authorization: PVEAPIToken={settings.PROXMOX_USER}!"
+            f"{settings.PROXMOX_TOKEN_NAME}={settings.PROXMOX_TOKEN_VALUE}"
+        )
+
+        cmd = [
+            "curl", "-k", "--fail-with-body", upload_url,
+            "-H", auth_header,
+            "-F", "content=vztmpl",
+            "-F", f"filename=@{file_path};filename={filename};type=application/octet-stream",
+        ]
+
+        # Redacted command for logging
+        safe_cmd = [c if "PVEAPIToken" not in c else "-H Authorization: PVEAPIToken=<redacted>" for c in cmd]
+        logger.info(f"Uploading template using curl fallback: {' '.join(safe_cmd)}")
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+            if result.returncode != 0:
+                logger.error(f"curl upload failed: status={result.returncode}, stderr={result.stderr}, stdout={result.stdout}")
+                raise RuntimeError(f"curl upload failed: {result.stderr or result.stdout}")
+
+            return json.loads(result.stdout)["data"]
+        except Exception as e:
+            logger.error(f"Failed during curl fallback upload: {e}")
+            raise
+
     def upload_template_from_path(self, storage: str, filename: str, file_path: str):
         file_size = os.path.getsize(file_path)
         logger.info(f"Uploading template {filename} to storage {storage} from {file_path} ({file_size} bytes)")
@@ -180,17 +217,9 @@ class ProxmoxService:
         try:
             with requests.Session() as session:
                 session.trust_env = False
-
                 with open(file_path, "rb") as f:
-                    files = {
-                        "filename": (
-                            filename,
-                            f,
-                            "application/octet-stream",
-                        )
-                    }
+                    files = {"filename": (filename, f, "application/octet-stream")}
                     data = {"content": "vztmpl"}
-
                     response = session.post(
                         upload_url,
                         headers=headers,
@@ -200,13 +229,18 @@ class ProxmoxService:
                         timeout=600,
                     )
 
-            if response.status_code >= 400:
-                logger.error(f"Upload failed with status {response.status_code}: {response.text}")
+            if not response.ok:
+                logger.error(f"Proxmox upload failed for {filename}: status={response.status_code}, body={response.text}")
 
             response.raise_for_status()
             return response.json()["data"]
 
         except Exception as e:
+            # Fallback to curl if requests fails with a connection abortion
+            if "RemoteDisconnected" in str(e) or "Connection aborted" in str(e):
+                logger.warning(f"Requests upload failed with connection error, attempting curl fallback: {e}")
+                return self.upload_template_from_path_with_curl(storage, filename, file_path)
+
             logger.error(f"Failed to upload template {filename} from {file_path}: {e}")
             raise
 
