@@ -119,9 +119,19 @@ def test_service_download_template_success(service):
         assert res == "UPID:download"
 
 def test_service_delete_template_success(service):
-    with patch.object(service.proxmox.nodes("dummy").storage("local").content("vol"), "delete", return_value="UPID:delete"):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"data": "UPID:delete"}
+    with patch("requests.Session.delete", return_value=mock_resp):
         res = service.delete_template("local", "vol")
         assert res == "UPID:delete"
+
+def test_service_delete_template_not_found(service):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 404
+    with patch("requests.Session.delete", return_value=mock_resp):
+        res = service.delete_template("local", "vol")
+        assert res == {"message": "Not found"}
 
 def test_service_download_template_error(service):
     with patch.object(service.proxmox.nodes("dummy").storage("local").download_url, "post", side_effect=Exception("Download Error")):
@@ -130,7 +140,7 @@ def test_service_download_template_error(service):
         assert "Download Error" in str(exc.value)
 
 def test_service_delete_template_error(service):
-    with patch.object(service.proxmox.nodes("dummy").storage("local").content("vol"), "delete", side_effect=Exception("Delete Error")):
+    with patch("requests.Session.delete", side_effect=Exception("Delete Error")):
         with pytest.raises(Exception) as exc:
             service.delete_template("local", "vol")
         assert "Delete Error" in str(exc.value)

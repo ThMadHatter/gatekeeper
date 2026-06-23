@@ -8,6 +8,7 @@ import os
 import tempfile
 import json
 import subprocess
+import urllib.parse
 
 # Suppress InsecureRequestWarning for self-signed Proxmox certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -130,10 +131,43 @@ class ProxmoxService:
 
     def delete_template(self, storage: str, volume: str):
         logger.info(f"Deleting template {volume} from storage {storage}")
+
+        # Volume could be 'vztmpl/file.tar.gz' or 'local:vztmpl/file.tar.gz'
+        # Proxmox API needs it to be URL encoded in the path
+        encoded_volume = urllib.parse.quote(volume, safe="")
+
+        host = settings.PROXMOX_HOST
+        if not host.startswith("http"):
+            host = f"https://{host}:8006"
+
+        delete_url = (
+            f"{host}/api2/json/nodes/{settings.PROXMOX_NODE}/"
+            f"storage/{storage}/content/{encoded_volume}"
+        )
+
+        headers = {
+            "Authorization": (
+                f"PVEAPIToken={settings.PROXMOX_USER}!"
+                f"{settings.PROXMOX_TOKEN_NAME}={settings.PROXMOX_TOKEN_VALUE}"
+            )
+        }
+
         try:
-            # Volume is usually something like 'vztmpl/debian-11-standard_11.0-1_amd64.tar.gz'
-            result = self.proxmox.nodes(settings.PROXMOX_NODE).storage(storage).content(volume).delete()
-            return result
+            with requests.Session() as session:
+                session.trust_env = False
+                response = session.delete(
+                    delete_url,
+                    headers=headers,
+                    verify=False,
+                    timeout=120,
+                )
+
+            if response.status_code == 404:
+                logger.info(f"Template {volume} not found on {storage}, skipping deletion.")
+                return {"message": "Not found"}
+
+            response.raise_for_status()
+            return response.json().get("data")
         except Exception as e:
             logger.error(f"Failed to delete template {volume} from {storage}: {e}")
             raise
@@ -204,6 +238,7 @@ class ProxmoxService:
             host = f"https://{host}:8006"
 
         upload_url = f"{host}/api2/json/nodes/{settings.PROXMOX_NODE}/storage/{storage}/upload"
+        logger.debug(f"Target Upload URL: {upload_url}")
 
         headers = {
             "Authorization": (
@@ -218,8 +253,10 @@ class ProxmoxService:
             with requests.Session() as session:
                 session.trust_env = False
                 with open(file_path, "rb") as f:
+                    # 'filename' field is mandatory for Proxmox upload
                     files = {"filename": (filename, f, "application/octet-stream")}
                     data = {"content": "vztmpl"}
+
                     response = session.post(
                         upload_url,
                         headers=headers,
@@ -228,6 +265,8 @@ class ProxmoxService:
                         verify=False,
                         timeout=600,
                     )
+
+            logger.info(f"Proxmox upload response status for {filename}: {response.status_code}")
 
             if not response.ok:
                 logger.error(f"Proxmox upload failed for {filename}: status={response.status_code}, body={response.text}")

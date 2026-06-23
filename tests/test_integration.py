@@ -59,6 +59,14 @@ async def test_full_lxc_lifecycle():
             additional_params["net0"] = os.getenv("TEST_NET0")
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", timeout=600) as ac:
+            # 0. Cleanup any existing template for idempotency
+            print(f"Pre-cleanup of existing template {template_filename} on {test_storage}...")
+            volume = f"{test_storage}:vztmpl/{template_filename}"
+            try:
+                await ac.delete(f"/proxmox/delete-template/{test_storage}/{volume}")
+            except Exception as e:
+                print(f"Warning: pre-cleanup failed: {e}")
+
             # 1. Download Template Locally
             print(f"\nDownloading template locally from {template_url}...")
             async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -125,8 +133,8 @@ async def test_full_lxc_lifecycle():
 
             # 8. Delete Template
             print(f"Deleting template {template_vol}...")
-            volume = f"vztmpl/{template_filename}"
-            await ac.delete(f"/proxmox/delete-template/{test_storage}/{volume}")
+            # Use the full volid for deletion consistency
+            await ac.delete(f"/proxmox/delete-template/{test_storage}/{template_vol}")
 
     else:
         # Mocked version
