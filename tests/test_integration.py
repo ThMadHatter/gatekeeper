@@ -20,10 +20,12 @@ async def wait_for_task(ac, upid, timeout_mins=5):
         assert task_resp.status_code == 200
         status = task_resp.json()["data"]
         if status["status"] == "stopped":
-            if status.get("exitstatus") == "OK":
+            exit_status = status.get("exitstatus", "")
+            # Task is successful if exitstatus is "OK" or contains "OK" with warnings
+            if "OK" in exit_status:
                 return True
             else:
-                pytest.fail(f"Proxmox task {upid} failed: {status.get('exitstatus')}")
+                pytest.fail(f"Proxmox task {upid} failed: {exit_status}")
     pytest.fail(f"Proxmox task {upid} timed out")
 
 @pytest.mark.asyncio
@@ -58,6 +60,8 @@ async def test_full_lxc_lifecycle():
             additional_params["password"] = os.getenv("TEST_PASSWORD")
         if os.getenv("TEST_NET0"):
             additional_params["net0"] = os.getenv("TEST_NET0")
+        if os.getenv("TEST_FEATURES"):
+            additional_params["features"] = os.getenv("TEST_FEATURES")
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", timeout=600) as ac:
             # 0. Cleanup any existing template for idempotency
