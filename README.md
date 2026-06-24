@@ -121,7 +121,8 @@ export TEST_TEMPLATE_NAME="debian-13-standard_13.1-2_amd64.tar.zst"
 # or ensure the local storage has enough space for the template.
 export TEST_PASSWORD="your-test-password"
 export TEST_NET0="name=eth0,bridge=vmbr0,ip=dhcp"
-export TEST_FEATURES="nesting=1,keyctl=1" # Recommended for Debian 13 / Systemd 257
+export TEST_FEATURES="nesting=1" # Recommended for Debian 13 / Systemd 257
+# Note: Features other than 'nesting' (like keyctl) may require root@pam permissions.
 # Plus all required PROXMOX_* variables if not in .secrets
 pytest -s tests/test_integration.py
 ```
