@@ -111,9 +111,12 @@ async def test_full_lxc_lifecycle():
 
             # 4. Start
             print(f"Starting LXC {test_vmid}...")
-            await ac.post(f"/proxmox/start-lxc/{test_vmid}")
+            response = await ac.post(f"/proxmox/start-lxc/{test_vmid}")
+            assert response.status_code == 200
+            await wait_for_task(ac, response.json()["data"])
 
-            # Wait for running status
+            # Wait for running status and system readiness
+            print(f"Waiting for LXC {test_vmid} to reach 'running' status...")
             running = False
             for _ in range(12):
                 await asyncio.sleep(5)
@@ -122,6 +125,9 @@ async def test_full_lxc_lifecycle():
                     running = True
                     break
             assert running, f"LXC failed to start. Status: {status_resp.text}"
+
+            print("Allowing container 10 seconds to fully initialize...")
+            await asyncio.sleep(10)
 
             # 5. Execute
             print(f"Executing command in LXC {test_vmid}...")
